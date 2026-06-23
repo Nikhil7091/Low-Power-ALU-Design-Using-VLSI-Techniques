@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Low-Power 8-bit ALU — VLSI Design</title>
+<style>
+  :root {
+    --bg: #0f1117; --bg2: #161b27; --bg3: #1e2638;
+    --green: #00ff9d; --blue: #4facfe; --purple: #a78bfa;
+    --orange: #fb923c; --red: #f87171; --yellow: #fbbf24;
+    --text: #e2e8f0; --muted: #64748b; --border: #2d3748;
+    --font: 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; font-size: 14px; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; color: var(--green); letter-spacing: 1px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 12px; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+  input[type=number], select {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 8px 10px; width: 100%; font-size: 14px; font-family: var(--font);
+    outline: none; transition: border .2s;
+  }
+  input[type=number]:focus, select:focus { border-color: var(--green); }
+  .btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; letter-spacing: 1px; transition: all .2s; width: 100%; }
+  .btn:hover { background: var(--green); color: var(--bg); }
+  .result-box { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: var(--font); }
+  .big-val { font-size: 28px; font-weight: 700; color: var(--green); }
+  .bin-row { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
+  .bit { width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: var(--font); font-size: 13px; font-weight: 700; border: 1px solid var(--border); transition: all .3s; }
+  .bit-1 { background: #00ff9d22; border-color: var(--green); color: var(--green); }
+  .bit-0 { background: var(--bg3); color: var(--muted); }
+  .flag-row { display: flex; gap: 8px; margin-top: 10px; }
+  .flag { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 1px; border: 1px solid; transition: all .3s; }
+  .flag-on { background: #fbbf2420; border-color: var(--yellow); color: var(--yellow); }
+  .flag-off { background: transparent; border-color: var(--border); color: var(--muted); }
+  .power-bar-wrap { margin-top: 8px; }
+  .power-bar-bg { background: var(--bg3); border-radius: 4px; height: 10px; overflow: hidden; margin-top: 4px; }
+  .power-bar-fill { height: 100%; border-radius: 4px; transition: width .5s, background .5s; }
+  .op-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .op-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 8px; border-radius: 6px; cursor: pointer; font-family: var(--font); font-size: 12px; text-align: center; transition: all .2s; }
+  .op-btn:hover, .op-btn.active { border-color: var(--blue); color: var(--blue); background: #4facfe18; }
+  .log-box { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 12px; height: 180px; overflow-y: auto; font-family: var(--font); font-size: 12px; }
+  .log-entry { padding: 2px 0; border-bottom: 1px solid #ffffff08; color: var(--muted); }
+  .log-entry span { color: var(--green); }
+  .tech-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .tech-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin: 2px; }
+  .t-blue { background: #4facfe18; border: 1px solid #4facfe44; color: var(--blue); }
+  .t-purple { background: #a78bfa18; border: 1px solid #a78bfa44; color: var(--purple); }
+  .t-green { background: #00ff9d18; border: 1px solid #00ff9d44; color: var(--green); }
+  .t-orange { background: #fb923c18; border: 1px solid #fb923c44; color: var(--orange); }
+  .waveform-wrap { background: var(--bg3); border-radius: 8px; overflow: hidden; margin-top: 8px; }
+  canvas { display: block; width: 100%; }
+  .metric { text-align: center; padding: 12px 8px; }
+  .metric-val { font-size: 22px; font-weight: 700; font-family: var(--font); }
+  .metric-unit { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .section-hdr { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .toggle-label { font-size: 12px; color: var(--text); }
+  .toggle { position: relative; width: 36px; height: 20px; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: var(--bg3); border-radius: 10px; border: 1px solid var(--border); cursor: pointer; transition: .3s; }
+  .toggle-slider:before { content:''; position: absolute; width: 14px; height: 14px; left: 3px; top: 2px; background: var(--muted); border-radius: 50%; transition: .3s; }
+  .toggle input:checked + .toggle-slider { background: #00ff9d22; border-color: var(--green); }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(14px); background: var(--green); }
+  .chip-svg { width: 100%; }
+</style>
+</head>
+<body>
+
+<h1>⚡ LOW-POWER 8-BIT ALU — VLSI DESIGN</h1>
+<p class="subtitle">CMOS Logic Implementation · Clock Gating · Dynamic Logic · Power Simulation</p>
+
+<div class="grid2">
+  <!-- INPUT PANEL -->
+  <div class="card">
+    <div class="card-title">Operand Inputs (8-bit)</div>
+    <div class="grid2" style="margin-bottom:12px">
+      <div>
+        <label>Operand A (0–255)</label>
+        <input type="number" id="inA" min="0" max="255" value="170" oninput="updateBits('A')">
+        <div class="bin-row" id="bitsA"></div>
+      </div>
+      <div>
+        <label>Operand B (0–255)</label>
+        <input type="number" id="inB" min="0" max="255" value="85" oninput="updateBits('B')">
+        <div class="bin-row" id="bitsB"></div>
+      </div>
+    </div>
+    <div class="card-title">Operation Select (3-bit Opcode)</div>
+    <div class="op-grid" id="opGrid">
+      <button class="op-btn active" data-op="ADD" onclick="selectOp(this,'ADD')">ADD</button>
+      <button class="op-btn" data-op="SUB" onclick="selectOp(this,'SUB')">SUB</button>
+      <button class="op-btn" data-op="AND" onclick="selectOp(this,'AND')">AND</button>
+      <button class="op-btn" data-op="OR"  onclick="selectOp(this,'OR')">OR</button>
+      <button class="op-btn" data-op="XOR" onclick="selectOp(this,'XOR')">XOR</button>
+      <button class="op-btn" data-op="NOT" onclick="selectOp(this,'NOT')">NOT A</button>
+      <button class="op-btn" data-op="SHL" onclick="selectOp(this,'SHL')">SHL</button>
+      <button class="op-btn" data-op="SHR" onclick="selectOp(this,'SHR')">SHR</button>
+    </div>
+    <br>
+    <button class="btn" onclick="compute()">▶ EXECUTE</button>
+  </div>
+
+  <!-- OUTPUT PANEL -->
+  <div class="card">
+    <div class="card-title">ALU Output</div>
+    <div class="result-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
+        <span style="color:var(--muted);font-size:12px">Result (8-bit)</span>
+        <span id="opLabel" style="color:var(--blue);font-size:11px;font-family:var(--font)">ADD</span>
+      </div>
+      <div class="big-val" id="resultDec">255</div>
+      <div style="font-size:12px; color:var(--muted); margin-top:2px" id="resultHex">0xFF</div>
+      <div class="bin-row" id="bitsOut"></div>
+      <div class="flag-row" id="flags">
+        <div class="flag" id="fZ">Z</div>
+        <div class="flag" id="fC">C</div>
+        <div class="flag" id="fN">N</div>
+        <div class="flag" id="fV">V</div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="card-title">Signal Flags</div>
+      <div style="font-size:11px; color:var(--muted); line-height:1.8">
+        <b style="color:var(--text)">Z</b> Zero &nbsp;|&nbsp; <b style="color:var(--text)">C</b> Carry &nbsp;|&nbsp; <b style="color:var(--text)">N</b> Negative &nbsp;|&nbsp; <b style="color:var(--text)">V</b> Overflow
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="card-title">Carry Chain Visualization</div>
+      <div id="carryViz" style="display:flex;gap:3px;flex-wrap:wrap;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- POWER METRICS -->
+<div class="grid3" style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">Power Consumption Model</div>
+    <div class="power-bar-wrap">
+      <div style="display:flex;justify-content:space-between"><span style="font-size:11px;color:var(--muted)">Dynamic Power</span><span id="dynPow" style="font-family:var(--font);font-size:11px;color:var(--orange)">--</span></div>
+      <div class="power-bar-bg"><div id="dynBar" class="power-bar-fill" style="width:0%;background:var(--orange)"></div></div>
+    </div>
+    <div class="power-bar-wrap" style="margin-top:8px">
+      <div style="display:flex;justify-content:space-between"><span style="font-size:11px;color:var(--muted)">Static (Leakage)</span><span id="statPow" style="font-family:var(--font);font-size:11px;color:var(--purple)">--</span></div>
+      <div class="power-bar-bg"><div id="statBar" class="power-bar-fill" style="width:0%;background:var(--purple)"></div></div>
+    </div>
+    <div class="power-bar-wrap" style="margin-top:8px">
+      <div style="display:flex;justify-content:space-between"><span style="font-size:11px;color:var(--muted)">Short-Circuit</span><span id="scPow" style="font-family:var(--font);font-size:11px;color:var(--red)">--</span></div>
+      <div class="power-bar-bg"><div id="scBar" class="power-bar-fill" style="width:0%;background:var(--red)"></div></div>
+    </div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;">
+      <span style="font-size:12px;color:var(--muted)">Total Power</span>
+      <span id="totalPow" style="font-family:var(--font);font-size:14px;font-weight:700;color:var(--green)">--</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Power Optimization Techniques</div>
+    <div class="toggle-row">
+      <span class="toggle-label">Clock Gating</span>
+      <label class="toggle"><input type="checkbox" id="tog_cg" checked onchange="compute()"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Dynamic Voltage Scaling</span>
+      <label class="toggle"><input type="checkbox" id="tog_dvs" onchange="compute()"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Dynamic Logic (DCVSL)</span>
+      <label class="toggle"><input type="checkbox" id="tog_dl" onchange="compute()"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Operand Isolation</span>
+      <label class="toggle"><input type="checkbox" id="tog_oi" checked onchange="compute()"><span class="toggle-slider"></span></label>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <span style="font-size:11px;color:var(--muted)">Power Reduction:</span>
+      <span id="reduction" style="font-family:var(--font);color:var(--green);font-weight:700;font-size:13px;margin-left:8px">--</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">CMOS Gate Count Estimate</div>
+    <div id="gateMetrics" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="metric" style="background:var(--bg3);border-radius:6px">
+        <div class="metric-val" id="gateCount" style="color:var(--blue)">—</div>
+        <div class="metric-unit">Equiv. Gates</div>
+      </div>
+      <div class="metric" style="background:var(--bg3);border-radius:6px">
+        <div class="metric-val" id="transCount" style="color:var(--purple)">—</div>
+        <div class="metric-unit">Transistors</div>
+      </div>
+      <div class="metric" style="background:var(--bg3);border-radius:6px">
+        <div class="metric-val" id="propDelay" style="color:var(--orange)">—</div>
+        <div class="metric-unit">Prop. Delay (ns)</div>
+      </div>
+      <div class="metric" style="background:var(--bg3);border-radius:6px">
+        <div class="metric-val" id="maxFreq" style="color:var(--green)">—</div>
+        <div class="metric-unit">Max Freq (MHz)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WAVEFORM + LOG -->
+<div class="grid2">
+  <div class="card">
+    <div class="section-hdr">📊 Signal Waveform (Clock × ALU Output)</div>
+    <div class="waveform-wrap">
+      <canvas id="waveCanvas" height="130"></canvas>
+    </div>
+    <div style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--muted)">CLK: <span style="color:var(--blue)">100 MHz</span></span>
+      <span style="font-size:11px;color:var(--muted)">VDD: <span id="vddLabel" style="color:var(--green)">1.8V</span></span>
+      <span style="font-size:11px;color:var(--muted)">Tech: <span style="color:var(--orange)">180nm CMOS</span></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-hdr">🔬 Simulation Log</div>
+    <div class="log-box" id="logBox">
+      <div class="log-entry"><span>[INIT]</span> ALU design loaded — 8-bit CMOS, 180nm process</div>
+      <div class="log-entry"><span>[INFO]</span> Clock gating enabled by default</div>
+      <div class="log-entry"><span>[INFO]</span> Operand isolation enabled by default</div>
+      <div class="log-entry"><span>[READY]</span> Enter operands and click EXECUTE to simulate</div>
+    </div>
+  </div>
+</div>
+
+<!-- VLSI TECH INFO -->
+<div style="margin-top:16px;">
+  <div class="card">
+    <div class="section-hdr">🔧 VLSI Implementation Notes</div>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:16px; font-size:12px;">
+      <div>
+        <div style="color:var(--blue);font-weight:600;margin-bottom:4px">Design Flow</div>
+        <div style="color:var(--muted);line-height:1.7">RTL → Logic Synthesis → Place &amp; Route → GDSII → Tape-out. Tools: Cadence Virtuoso / Synopsys Design Compiler</div>
+      </div>
+      <div>
+        <div style="color:var(--purple);font-weight:600;margin-bottom:4px">Power Techniques</div>
+        <div style="color:var(--muted);line-height:1.7">Clock gating reduces dynamic power by ~30%. DCVSL dynamic logic cuts glitch power. Operand isolation prevents unnecessary switching.</div>
+      </div>
+      <div>
+        <div style="color:var(--green);font-weight:600;margin-bottom:4px">Layout Tools</div>
+        <div style="color:var(--muted);line-height:1.7">Microwind / Magic VLSI for physical design. DRC/LVS checks mandatory. Standard cells from 180nm PDK library.</div>
+      </div>
+      <div>
+        <div style="color:var(--orange);font-weight:600;margin-bottom:4px">Process: 180nm CMOS</div>
+        <div style="color:var(--muted);line-height:1.7">VDD: 1.8V nominal. Vth NMOS ≈ 0.5V, PMOS ≈ -0.6V. Cox: 8.6 fF/μm². NAND2 = 4 transistors.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ops = {
+  ADD: (a,b) => ({r: (a+b)&0xFF, carry: (a+b)>255, ovf: ((a^(a+b))&((b^(a+b)))&0x80)!==0}),
+  SUB: (a,b) => ({r: (a-b+256)&0xFF, carry: a<b, ovf: ((a^b)&((a^((a-b+256)&0xFF)))&0x80)!==0}),
+  AND: (a,b) => ({r: a&b, carry:false, ovf:false}),
+  OR:  (a,b) => ({r: a|b, carry:false, ovf:false}),
+  XOR: (a,b) => ({r: a^b, carry:false, ovf:false}),
+  NOT: (a,b) => ({r: (~a)&0xFF, carry:false, ovf:false}),
+  SHL: (a,b) => ({r: (a<<1)&0xFF, carry: (a&0x80)!==0, ovf:false}),
+  SHR: (a,b) => ({r: (a>>1)&0xFF, carry: (a&1)!==0, ovf:false}),
+};
+const opGates = {ADD:242,SUB:258,AND:64,OR:64,XOR:96,NOT:32,SHL:48,SHR:48};
+const opDelay = {ADD:12.4,SUB:13.1,AND:2.2,OR:2.2,XOR:3.5,NOT:1.1,SHL:2.8,SHR:2.8};
+let curOp = 'ADD';
+let history = [];
+
+function bin8(v){ return v.toString(2).padStart(8,'0'); }
+function renderBits(id, val) {
+  const b = bin8(val);
+  document.getElementById(id).innerHTML = b.split('').map((bit,i) =>
+    `<div class="bit ${bit==='1'?'bit-1':'bit-0'}">${bit}</div>`
+  ).join('');
+}
+function updateBits(x) {
+  let v = parseInt(document.getElementById('in'+x).value)||0;
+  v = Math.max(0,Math.min(255,v));
+  document.getElementById('in'+x).value = v;
+  renderBits('bits'+x, v);
+}
+function selectOp(btn, op) {
+  curOp = op;
+  document.querySelectorAll('.op-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('opLabel').textContent = op;
+}
+function popCount(v){ let c=0; while(v){c+=v&1;v>>=1;} return c; }
+
+function compute() {
+  const A = parseInt(document.getElementById('inA').value)||0;
+  const B = parseInt(document.getElementById('inB').value)||0;
+  const {r, carry, ovf} = ops[curOp](A, B);
+  renderBits('bitsA', A);
+  renderBits('bitsB', B);
+  renderBits('bitsOut', r);
+  document.getElementById('resultDec').textContent = r;
+  document.getElementById('resultHex').textContent = '0x' + r.toString(16).toUpperCase().padStart(2,'0') + '  |  0b' + bin8(r);
+
+  // Flags
+  const zero = r===0, neg = (r&0x80)!==0;
+  setFlag('fZ', zero, 'Z'); setFlag('fC', carry, 'C');
+  setFlag('fN', neg, 'N'); setFlag('fV', ovf, 'V');
+
+  // Carry chain (ripple carry adder style)
+  let carryBits = [];
+  if (curOp==='ADD'||curOp==='SUB') {
+    let c=0, bv = curOp==='SUB'?(~B&0xFF):B;
+    for(let i=0;i<8;i++){
+      let ai=(A>>i)&1, bi=(bv>>i)&1;
+      let sum=ai+bi+c; carryBits.push(c); c=sum>>1;
+    }
+  }
+  const cv = document.getElementById('carryViz');
+  if(carryBits.length){
+    cv.innerHTML = carryBits.map((c,i)=>`<div style="width:26px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:var(--font);border:1px solid ${c?'var(--yellow)':'var(--border)'};color:${c?'var(--yellow)':'var(--muted)'};background:${c?'#fbbf2415':'transparent'}">${c?'1':'0'}</div>`).join('');
+  } else { cv.innerHTML = '<span style="color:var(--muted);font-size:11px;">N/A for logic ops</span>'; }
+
+  // Power model
+  const activity = popCount(A^(history[history.length-1]?.A||0)) + popCount(B^(history[history.length-1]?.B||0));
+  const cg = document.getElementById('tog_cg').checked;
+  const dvs = document.getElementById('tog_dvs').checked;
+  const dl = document.getElementById('tog_dl').checked;
+  const oi = document.getElementById('tog_oi').checked;
+
+  let vdd = dvs ? 1.2 : 1.8;
+  document.getElementById('vddLabel').textContent = vdd.toFixed(1)+'V';
+
+  const gates = opGates[curOp];
+  const af = (activity + popCount(r)) / 32;
+  let dyn = 0.5 * gates * 3.2e-15 * vdd*vdd * 1e8 * af;
+  if(cg) dyn *= 0.7;
+  if(dl) dyn *= 0.82;
+  if(oi) dyn *= 0.91;
+  let stat = gates * 12e-9 * vdd;
+  let sc = dyn * 0.08;
+  let total = dyn + stat + sc;
+
+  // Base power (no optimization)
+  let base = 0.5 * gates * 3.2e-15 * 1.8*1.8 * 1e8 * af + gates * 12e-9 * 1.8;
+  let redPct = base>0 ? Math.round((1 - total/base)*100) : 0;
+
+  setPower('dynPow', dyn*1e6, 'dynBar', 'µW');
+  setPower('statPow', stat*1e6, 'statBar', 'µW');
+  setPower('scPow', sc*1e6, 'scBar', 'µW');
+  document.getElementById('totalPow').textContent = (total*1e6).toFixed(1)+' µW';
+  document.getElementById('reduction').textContent = redPct > 0 ? '-'+redPct+'%' : '0%';
+
+  // Gate metrics
+  document.getElementById('gateCount').textContent = gates;
+  document.getElementById('transCount').textContent = gates*4;
+  const pd = opDelay[curOp];
+  document.getElementById('propDelay').textContent = pd.toFixed(1);
+  document.getElementById('maxFreq').textContent = Math.round(1000/pd);
+
+  // Log
+  addLog(A, B, curOp, r, carry, ovf, zero, neg, total);
+  history.push({A, B, op:curOp, r});
+  drawWaveform(history);
+}
+
+function setPower(id, val, barId, unit) {
+  document.getElementById(id).textContent = val.toFixed(2)+' '+unit;
+  document.getElementById(barId).style.width = Math.min(100, val/0.5*100)+'%';
+}
+function setFlag(id, on, label) {
+  const el = document.getElementById(id);
+  el.className = 'flag ' + (on?'flag-on':'flag-off');
+  el.textContent = label;
+}
+function addLog(a, b, op, r, c, ov, z, neg, pwr) {
+  const box = document.getElementById('logBox');
+  const line = document.createElement('div');
+  line.className='log-entry';
+  line.innerHTML = `<span>[EXEC]</span> ${a} ${op} ${b} = ${r} | Flags: Z=${+z} C=${+c} N=${+neg} V=${+ov} | Pwr: ${(pwr*1e6).toFixed(2)}µW`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function drawWaveform(hist) {
+  const canvas = document.getElementById('waveCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const W = canvas.offsetWidth, H = 130;
+  ctx.clearRect(0, 0, W, H);
+
+  // Clock signal
+  ctx.strokeStyle = '#4facfe'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  const T = W / 20;
+  for(let x=0; x<W; x++){
+    const phase = Math.floor(x/T) % 2;
+    const y = phase===0 ? 15 : 30;
+    if(x===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    if(x>0 && Math.floor(x/T)!==Math.floor((x-1)/T)) {
+      ctx.lineTo(x, phase===0?15:30);
+    }
+  }
+  ctx.stroke();
+  ctx.fillStyle='#4facfe'; ctx.font='10px Courier New';
+  ctx.fillText('CLK',4,12);
+
+  // Output waveform from history
+  if(hist.length > 0) {
+    ctx.strokeStyle = '#00ff9d'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    const n = Math.min(hist.length, 16);
+    const recent = hist.slice(-n);
+    recent.forEach((h, i) => {
+      const x = (i / n) * (W - 20) + 10;
+      const y = 130 - 20 - (h.r / 255 * 70);
+      if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.fillStyle='#00ff9d'; ctx.fillText('OUT',4,55);
+  }
+
+  // Grid lines
+  ctx.strokeStyle = '#ffffff0a'; ctx.lineWidth = 0.5;
+  for(let y=40; y<130; y+=20){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+}
+
+// Init
+updateBits('A'); updateBits('B');
+compute();
+window.addEventListener('resize', ()=>{ if(history.length) drawWaveform(history); });
+</script>
+</body>
+</html>
